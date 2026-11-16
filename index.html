@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library Management System</title>
+<style>
+:root{--ink:#16233a;--paper:#f1f4f7;--card:#fff;--line:#d9dee5;--mute:#5d6b7e;--ok:#2c7a5b;--ok-bg:#dff1e8;--warn:#9a6a12;--warn-bg:#f9ecc9;--bad:#a8332a;--bad-bg:#f8e0dd}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--ink);color:#fff;padding:28px 20px}
+header div,main{max-width:1080px;margin:0 auto}
+h1{margin:0;font:600 28px/1.2 "Iowan Old Style",Palatino,"Palatino Linotype",Georgia,serif}
+header p{margin:4px 0 0;color:#b9c4d6}
+main{padding:20px;display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px}
+.card+.card{margin-top:16px}
+h2{margin:0 0 12px;font:600 17px/1.3 "Iowan Old Style",Palatino,Georgia,serif}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:4px;font:inherit;color:inherit;background:#fff}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+button{font:inherit;cursor:pointer;border-radius:4px;border:1px solid var(--ink);background:var(--ink);color:#fff;padding:9px 14px}
+button.alt{background:#fff;color:var(--ink)}
+button.sm{padding:4px 10px;font-size:13px}
+button.link{border:0;background:none;color:var(--mute);text-decoration:underline;padding:0;font-size:13px}
+.row{display:flex;gap:8px;margin-top:12px}
+.row button{flex:1}
+.msg{min-height:44px;margin-bottom:16px;padding:10px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--mute)}
+.msg.ok{background:var(--ok-bg);border-color:#b8dcc9;color:var(--ok)}
+.msg.bad{background:var(--bad-bg);border-color:#ecc3be;color:var(--bad)}
+.bar{display:flex;gap:8px;margin-bottom:14px}
+.bar select{width:130px;flex:none}
+.bar input{flex:1}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:13px;font-weight:600;color:var(--mute)}
+td.id{font-variant-numeric:tabular-nums;font-weight:600}
+td.title{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:16px}
+.tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600}
+.tag.in{background:var(--ok-bg);color:var(--ok)}
+.tag.out{background:var(--warn-bg);color:var(--warn)}
+.empty{padding:28px 8px;color:var(--mute)}
+.meta{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:13px;color:var(--mute)}
+dialog{border:1px solid var(--line);border-radius:6px;padding:20px;width:min(340px,92vw);color:var(--ink)}
+dialog::backdrop{background:rgba(22,35,58,.45)}
+@media (max-width:820px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div>
+<h1>Library Management System</h1>
+<p>Add, search, issue and return books. Fine: Rs. 5 per late day.</p>
+</div></header>
+
+<main>
+<aside>
+<form class="card" id="addForm">
+<h2>Add a book</h2>
+<label for="fId">Book ID</label>
+<input id="fId" inputmode="numeric" autocomplete="off">
+<label for="fTitle">Title</label>
+<input id="fTitle" autocomplete="off">
+<label for="fAuthor">Author</label>
+<input id="fAuthor" autocomplete="off">
+<div class="row"><button type="submit">Add book</button></div>
+</form>
+
+<div class="card">
+<h2>Issue or return by ID</h2>
+<label for="aId">Book ID</label>
+<input id="aId" inputmode="numeric" autocomplete="off">
+<div class="row">
+<button type="button" id="issueBtn">Issue book</button>
+<button type="button" class="alt" id="returnBtn">Return book</button>
+</div>
+</div>
+</aside>
+
+<section>
+<div class="msg" id="msg" role="status" aria-live="polite">Add a book to get started.</div>
+<div class="card">
+<form class="bar" id="searchForm">
+<select id="sMode" aria-label="Search by">
+<option value="id">Book ID</option>
+<option value="title">Title</option>
+</select>
+<input id="sQ" placeholder="Search" autocomplete="off" aria-label="Search text">
+<button type="submit">Search</button>
+<button type="button" class="alt" id="showAll">Show all</button>
+</form>
+<div class="wrap">
+<table>
+<thead><tr><th>ID</th><th>Title</th><th>Author</th><th>Status</th><th></th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+<div class="meta">
+<span id="count"></span>
+<button type="button" class="link" id="reset">Reset all data</button>
+</div>
+</div>
+</section>
+</main>
+
+<dialog id="fineDialog">
+<form method="dialog" id="fineForm">
+<h2>Return book</h2>
+<p id="fineBook" style="margin:0 0 4px;color:var(--mute)"></p>
+<label for="lateDays">How many days late? Enter 0 if on time.</label>
+<input id="lateDays" type="number" min="0" step="1" value="0">
+<div class="row">
+<button type="submit">Return book</button>
+<button type="button" class="alt" id="fineCancel">Cancel</button>
+</div>
+</form>
+</dialog>
+
+<script>
+const FINE_PER_DAY = 5;
+const CAPACITY = 100;
+const KEY = "library.books";
+
+class Book {
+  constructor(id, title, author, available = true) {
+    this.id = id;
+    this.title = title;
+    this.author = author;
+    this.available = available;
+  }
+  issue() { this.available = false; }
+  returnBook() { this.available = true; }
+}
+
+let books = [];
+let view = { mode: "all", q: "" };
+let pendingReturn = null;
+
+try {
+  const raw = localStorage.getItem(KEY);
+  if (raw) books = JSON.parse(raw).map(b => new Book(b.id, b.title, b.author, b.available));
+} catch (e) {
+  books = [];
+}
+
+const $ = s => document.querySelector(s);
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(books)); } catch (e) {}
+}
+
+function say(text, ok = true) {
+  const m = $("#msg");
+  m.textContent = text;
+  m.className = "msg " + (ok ? "ok" : "bad");
+}
+
+function parseId(v) {
+  const s = String(v).trim();
+  return /^-?\d+$/.test(s) ? parseInt(s, 10) : null;
+}
+
+function findBook(id) {
+  return books.find(b => b.id === id) || null;
+}
+
+function currentList() {
+  if (view.mode === "id") {
+    const b = findBook(parseId(view.q));
+    return b ? [b] : [];
+  }
+  if (view.mode === "title") {
+    const q = view.q.toLowerCase();
+    return books.filter(b => b.title.toLowerCase().includes(q));
+  }
+  return books;
+}
+
+function cell(tag, text, cls) {
+  const c = document.createElement(tag);
+  c.textContent = text;
+  if (cls) c.className = cls;
+  return c;
+}
+
+function render() {
+  const tbody = $("#rows");
+  tbody.replaceChildren();
+  const list = currentList();
+
+  if (list.length === 0) {
+    const tr = document.createElement("tr");
+    const td = cell("td", books.length === 0 ? "No books have been added." : "No books to show.", "empty");
+    td.colSpan = 5;
+    tr.append(td);
+    tbody.append(tr);
+  }
+
+  list.forEach(b => {
+    const tr = document.createElement("tr");
+    const status = document.createElement("td");
+    status.append(cell("span", b.available ? "Available" : "Issued", "tag " + (b.available ? "in" : "out")));
+    const act = document.createElement("td");
+    const btn = cell("button", b.available ? "Issue" : "Return", "sm alt");
+    btn.type = "button";
+    btn.addEventListener("click", () => b.available ? issueBook(b.id) : returnBook(b.id));
+    act.append(btn);
+    tr.append(cell("td", b.id, "id"), cell("td", b.title, "title"), cell("td", b.author), status, act);
+    tbody.append(tr);
+  });
+
+  $("#count").textContent = books.length + " of " + CAPACITY + " books in the library";
+}
+
+function addBook(e) {
+  e.preventDefault();
+  if (books.length === CAPACITY) { say("The library is full.", false); return; }
+  const id = parseId($("#fId").value);
+  const title = $("#fTitle").value.trim();
+  const author = $("#fAuthor").value.trim();
+  if (id === null || !title || !author) { say("Enter a whole-number ID, a title and an author.", false); return; }
+  if (findBook(id)) { say("A book with ID " + id + " already exists.", false); return; }
+  books.push(new Book(id, title, author));
+  save();
+  e.target.reset();
+  view = { mode: "all", q: "" };
+  say("Book added.");
+  render();
+}
+
+function search(e) {
+  e.preventDefault();
+  view = { mode: $("#sMode").value, q: $("#sQ").value.trim() };
+  render();
+  if (currentList().length === 0) say("Book not found.", false);
+  else say("Showing " + currentList().length + " result(s).");
+}
+
+function showAll() {
+  view = { mode: "all", q: "" };
+  $("#sQ").value = "";
+  render();
+  if (books.length === 0) say("No books have been added.", false);
+  else say("Showing all books.");
+}
+
+function issueBook(id) {
+  const book = findBook(id);
+  if (!book) say("Book not found.", false);
+  else if (!book.available) say("That book is already issued.", false);
+  else {
+    book.issue();
+    save();
+    say("Book issued.");
+  }
+  render();
+}
+
+function returnBook(id) {
+  const book = findBook(id);
+  if (!book) { say("Book not found.", false); return; }
+  if (book.available) { say("That book was not issued.", false); return; }
+  pendingReturn = book;
+  $("#fineBook").textContent = book.title + " (ID " + book.id + ")";
+  $("#lateDays").value = 0;
+  $("#fineDialog").showModal();
+  $("#lateDays").select();
+}
+
+function confirmReturn(e) {
+  e.preventDefault();
+  const days = parseInt($("#lateDays").value, 10);
+  if (isNaN(days) || days < 0) { $("#lateDays").focus(); return; }
+  const fine = days * FINE_PER_DAY;
+  pendingReturn.returnBook();
+  pendingReturn = null;
+  save();
+  $("#fineDialog").close();
+  say("Book returned. Fine: Rs. " + fine);
+  render();
+}
+
+function actionId() {
+  const id = parseId($("#aId").value);
+  if (id === null) { say("Enter a whole-number book ID.", false); return null; }
+  return id;
+}
+
+$("#addForm").addEventListener("submit", addBook);
+$("#searchForm").addEventListener("submit", search);
+$("#showAll").addEventListener("click", showAll);
+$("#issueBtn").addEventListener("click", () => { const id = actionId(); if (id !== null) issueBook(id); });
+$("#returnBtn").addEventListener("click", () => { const id = actionId(); if (id !== null) returnBook(id); });
+$("#fineForm").addEventListener("submit", confirmReturn);
+$("#fineCancel").addEventListener("click", () => { pendingReturn = null; $("#fineDialog").close(); });
+$("#reset").addEventListener("click", () => {
+  if (!confirm("Delete all books?")) return;
+  books = [];
+  save();
+  view = { mode: "all", q: "" };
+  say("All data cleared.");
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
